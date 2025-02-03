@@ -9,9 +9,13 @@ import {
 } from '@nestjs/common';
 import { TelegramService } from './telegram.service';
 import { SendMessageDto } from './send-message.dto';
-import { telegramHeaders } from 'src/constants';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Multer } from 'multer';
+
+const telegramHeaders = {
+  student: 'Новий запис на урок:',
+  teacher: 'Новий відгук на вакансію:',
+};
 
 @Controller('telegram')
 export class TelegramController {
