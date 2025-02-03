@@ -1,0 +1,83 @@
+import {
+  Controller,
+  Post,
+  Body,
+  HttpException,
+  HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { TelegramService } from './telegram.service';
+import { SendMessageDto } from './send-message.dto';
+import { telegramHeaders } from 'src/constants';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Multer } from 'multer';
+
+@Controller('telegram')
+export class TelegramController {
+  constructor(private readonly telegramService: TelegramService) {}
+
+  @Post('send-message')
+  async sendMessage(@Body() body: SendMessageDto) {
+    const { type, name, number, subject, description } = body;
+
+    if (!type || !name || !number || !subject) {
+      throw new HttpException(
+        'Будь ласка, заповніть всі поля',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Перевірка номеру телефону
+    const ukrainianPhoneRegex =
+      /^\+?380[-\s]?\d{2}[-\s]?\d{3}[-\s]?\d{2}[-\s]?\d{2}$/;
+
+    if (!ukrainianPhoneRegex.test(number)) {
+      throw new HttpException(
+        'Будь ласка, введіть коректний номер телефону у форматі +380 XX XXX XX XX',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const message = `
+      <b>${telegramHeaders[type]}</b>
+  - Ім'я: ${name}
+  - Телефон: ${number}
+  - Предмет: ${subject}
+  - Додаткова інформація: ${description || 'не вказано'}
+    `;
+
+    try {
+      await this.telegramService.sendMessage(message);
+      return { status: 'success' };
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      throw new HttpException(
+        'Помилка при відправці повідомлення',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('send-document')
+  @UseInterceptors(FileInterceptor('document'))
+  async sendDocument(@UploadedFile() file: Multer.File) {
+    if (!file) {
+      throw new HttpException(
+        'Файл не був завантажений',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    try {
+      await this.telegramService.sendDocument(file);
+      return { status: 'success' };
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      throw new HttpException(
+        'Помилка при відправці документа',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+}
