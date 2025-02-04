@@ -22,7 +22,11 @@ export class TelegramController {
   constructor(private readonly telegramService: TelegramService) {}
 
   @Post('send-message')
-  async sendMessage(@Body() body: SendMessageDto) {
+  @UseInterceptors(FileInterceptor('document'))
+  async sendMessage(
+    @Body() body: SendMessageDto,
+    @UploadedFile() file?: Multer.File,
+  ) {
     const { type, name, number, subject, description } = body;
 
     if (!type || !name || !number || !subject) {
@@ -52,34 +56,19 @@ export class TelegramController {
     `;
 
     try {
+      // Відправка повідомлення
       await this.telegramService.sendMessage(message);
+
+      // Якщо файл є, відправляємо його
+      if (file) {
+        await this.telegramService.sendDocument(file);
+      }
+
       return { status: 'success' };
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       throw new HttpException(
-        'Помилка при відправці повідомлення',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Post('send-document')
-  @UseInterceptors(FileInterceptor('document'))
-  async sendDocument(@UploadedFile() file: Multer.File) {
-    if (!file) {
-      throw new HttpException(
-        'Файл не був завантажений',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    try {
-      await this.telegramService.sendDocument(file);
-      return { status: 'success' };
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      throw new HttpException(
-        'Помилка при відправці документа',
+        'Помилка при відправці повідомлення або документа',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
