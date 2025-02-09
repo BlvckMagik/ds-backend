@@ -107,12 +107,12 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           Номер телефону має відповідати паттерну українських, німецьких та австрійських номерів. Якщо користувач заявляє, що це телефон іншої країни, то його можна прийняти
           Консультації не по темі розмови не проводяться. Можеш переходити на інші мови крім російської, але якщо починаєш говорити першим, то звертайся українською. Консультація російською не проводиться, на цю мову заборонено переходити.
           Після отримання всіх необхідних данних відправ данні форми, що заповнив користувач і попроси його підтвердити, що все правильно. В самому повідомленні має бути ключова фраза повністю: "Будь ласка, перевірте вказані данні". Після підтвердження подякуй, скажи, що ми зв'яжемося з користувачем найближчим часом і попрощайся. Також скажи, що якщо будуть додаткові питання, то користувач може звертатись повторно.
-          Для форматування тексту використовуй MarkdownV2.
+          Для форматування тексту використовуй parse_mode: 'HTML'.
           `,
         );
 
-        await ctx.reply(this.escapeMarkdown(response), {
-          parse_mode: 'MarkdownV2',
+        await ctx.reply(response, {
+          parse_mode: 'HTML',
         });
       } catch (error) {
         console.error('Помилка в команді /start:', error);
@@ -134,8 +134,8 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           userId,
           userMessage,
         );
-        await ctx.reply(this.escapeMarkdown(response), {
-          parse_mode: 'MarkdownV2',
+        await ctx.reply(response, {
+          parse_mode: 'HTML',
         });
       } catch (error) {
         console.error('Помилка обробки повідомлення:', error);
@@ -155,9 +155,5 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.stop('DESTROY');
-  }
-
-  private escapeMarkdown(text: string): string {
-    return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
   }
 }
