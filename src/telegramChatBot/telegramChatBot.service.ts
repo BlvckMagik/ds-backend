@@ -71,10 +71,13 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
   private setupHandlers() {
     this.bot.start(async (ctx) => {
       const userId = ctx.from.id;
+      console.log(`Отримано команду /start від користувача ${userId}`);
+
       try {
         await ctx.reply(
           'Ласкаво просимо! Зачекайте, будь ласка, поки я підготуюсь до розмови...',
         );
+        console.log('Відправлено привітальне повідомлення');
 
         const response = await this.chatService.getChatResponse(
           userId,
@@ -93,10 +96,12 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           Консультації не по темі розмови не проводяться. Номер телефону обов'язково має відповідати паттерну українських номерів. Якщо користувач заявляє, що це телефон іншої країни, то його можна прийняти
           `,
         );
+        console.log(`Отримано відповідь від ChatGPT: ${response}`);
 
         await ctx.reply(response);
+        console.log('Відповідь успішно надіслана користувачу');
       } catch (error) {
-        console.error('Error in start command:', error);
+        console.error('Детальна помилка в команді start:', error);
         await ctx.reply(
           'Виникла помилка при ініціалізації чату. Спробуйте ще раз.',
         );
