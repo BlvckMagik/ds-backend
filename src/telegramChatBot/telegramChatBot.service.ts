@@ -29,14 +29,23 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
       const secretPath = `/webhook/${process.env.MANAGER_TELEGRAM_BOT_ID}`;
 
       if (webhookDomain) {
-        // Спочатку видаляємо всі попередні webhook налаштування
+        // Додаємо затримку перед видаленням вебхука
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Видаляємо попередній вебхук
         await this.bot.telegram.deleteWebhook({ drop_pending_updates: true });
+
+        // Додаємо затримку перед встановленням нового вебхука
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         // Встановлюємо новий webhook
         await this.bot.telegram.setWebhook(`${webhookDomain}${secretPath}`);
         console.log(`Webhook встановлено на ${webhookDomain}${secretPath}`);
 
-        // Запускаємо бота в режимі webhook
+        // Додаємо затримку перед запуском
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Запускаємо бота
         await this.bot.launch({
           webhook: {
             domain: webhookDomain,
