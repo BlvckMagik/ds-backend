@@ -7,7 +7,7 @@ import { Multer } from 'multer';
 
 @Injectable()
 export class TelegramService {
-  private readonly botId = process.env.TELEGRAM_BOT_ID;
+  private readonly botId = process.env.APPLIES_TELEGRAM_BOT_ID;
   private readonly chatId = process.env.TELEGRAM_CHAT_ID;
 
   async sendMessage(message: string) {
