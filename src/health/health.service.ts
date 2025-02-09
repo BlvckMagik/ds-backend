@@ -8,7 +8,7 @@ import axios from 'axios';
 export class HealthService implements OnModuleInit {
   private readonly logger = new Logger(HealthService.name);
   private readonly interval = 12 * 60 * 1000; // 12 хвилин
-  private readonly url = process.env.APP_URL;
+  private readonly url = process.env.WEBHOOK_DOMAIN;
 
   async onModuleInit() {
     if (!this.url) {

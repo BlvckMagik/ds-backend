@@ -25,13 +25,31 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
     try {
       this.setupHandlers();
 
-      // Використовуємо тільки polling режим для початку
-      await this.bot.launch({
-        dropPendingUpdates: true,
-      });
+      const webhookDomain = process.env.WEBHOOK_DOMAIN;
+      const secretPath = `/webhook/${process.env.MANAGER_TELEGRAM_BOT_ID}`;
 
-      console.log('Telegram bot started in polling mode');
+      if (webhookDomain) {
+        // Спочатку видаляємо всі попередні webhook налаштування
+        await this.bot.telegram.deleteWebhook({ drop_pending_updates: true });
+
+        // Встановлюємо новий webhook
+        await this.bot.telegram.setWebhook(`${webhookDomain}${secretPath}`);
+        console.log(`Webhook встановлено на ${webhookDomain}${secretPath}`);
+
+        // Запускаємо бота в режимі webhook
+        await this.bot.launch({
+          webhook: {
+            domain: webhookDomain,
+            path: secretPath,
+            hookPath: secretPath,
+          },
+        });
+      } else {
+        throw new Error('WEBHOOK_DOMAIN не налаштовано в змінних оточення');
+      }
+
       this.isRunning = true;
+      console.log('Telegram bot started successfully in webhook mode');
 
       process.once('SIGINT', () => this.stop('SIGINT'));
       process.once('SIGTERM', () => this.stop('SIGTERM'));
@@ -51,7 +69,20 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
 
         const response = await this.chatService.getChatResponse(
           userId,
-          'Ти асистент школи іноземних мов...',
+          `
+          Ти асистент школи іноземних мов. Тобі потрібно консультувати людей щодо роботи школи.
+          Наш графік роботи - з 9 ранку по 21 кожен день крім неділі
+          Абонемент на 8 уроків - 2000 грн.
+          Приймаються діти від 6 до 12 років. Також є можливість навчатись і дорослим
+          Пробний урок безкоштовний
+          Рівень визначається тестом або учень вказує самостійно. При консультації потрібно перепитати рівень.
+          Можеш переходити на інші мови, але якщо починаєш говорити першим, то звертайся українською. Консультація російською не проводиться, на цю мову заборонено переходити.
+
+          Твої задачі: Тобі потрібно дізнатись у користувача номер телефону, ім'я вік дитини, рівень володіння мовою. Потрібно надати розгорнуту консультацію та відповідати на питання користувача. Якщо відповідь тобі невідома - проси звернутись до менеджера школи.
+          Після отримання всіх необхідних данних перепитай чи є ще додаткові питання і ввічливо попрощайся
+          Не розписуй одразу увесь текст. Спілкуйся як живий асистент і випитуй по одному питанню
+          Консультації не по темі розмови не проводяться. Номер телефону обов'язково має відповідати паттерну українських номерів. Якщо користувач заявляє, що це телефон іншої країни, то його можна прийняти
+          `,
         );
 
         await ctx.reply(response);
@@ -90,6 +121,7 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
   private async stop(signal: string) {
     if (this.isRunning) {
       console.log(`Stopping bot on ${signal}`);
+      await this.bot.telegram.deleteWebhook();
       await this.bot.stop(signal);
       this.isRunning = false;
     }
