@@ -23,27 +23,16 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      // Налаштування обробників
       this.setupHandlers();
 
-      // Запуск бота з веб-хуком для Render
-      const webhookDomain = process.env.WEBHOOK_DOMAIN;
-      if (webhookDomain) {
-        const webhookUrl = `${webhookDomain}/webhook`;
-        await this.bot.telegram.setWebhook(webhookUrl);
-        console.log(`Webhook set to ${webhookUrl}`);
-      } else {
-        // Якщо немає домену для вебхука, використовуємо polling
-        await this.bot.launch({
-          dropPendingUpdates: true,
-          allowedUpdates: ['message', 'callback_query'],
-        });
-        console.log('Bot started in polling mode');
-      }
+      // Використовуємо тільки polling режим для початку
+      await this.bot.launch({
+        dropPendingUpdates: true,
+      });
 
+      console.log('Telegram bot started in polling mode');
       this.isRunning = true;
 
-      // Обробники завершення роботи
       process.once('SIGINT', () => this.stop('SIGINT'));
       process.once('SIGTERM', () => this.stop('SIGTERM'));
     } catch (error) {
@@ -59,10 +48,12 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
         await ctx.reply(
           'Ласкаво просимо! Зачекайте, будь ласка, поки я підготуюсь до розмови...',
         );
+
         const response = await this.chatService.getChatResponse(
           userId,
-          'Початковий промпт...',
+          'Ти асистент школи іноземних мов...',
         );
+
         await ctx.reply(response);
       } catch (error) {
         console.error('Error in start command:', error);
@@ -73,13 +64,21 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.on('text', async (ctx) => {
-      const userId = ctx.from.id;
-      const userMessage = ctx.message.text;
       try {
+        const userId = ctx.from.id;
+        const userMessage = ctx.message.text;
+
+        console.log(
+          `Отримано повідомлення від користувача ${userId}: ${userMessage}`,
+        );
+
         const response = await this.chatService.getChatResponse(
           userId,
           userMessage,
         );
+
+        console.log(`Відповідь для користувача ${userId}: ${response}`);
+
         await ctx.reply(response);
       } catch (error) {
         console.error('Error processing message:', error);
