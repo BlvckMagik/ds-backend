@@ -22,10 +22,14 @@ export class HealthService implements OnModuleInit {
     setInterval(async () => {
       try {
         const startTime = Date.now();
-        await axios.get(`${this.url}/health`);
+        const response = await axios.get(`${this.url}/health`);
         const duration = Date.now() - startTime;
 
-        this.logger.log(`Health check успішний. Тривалість: ${duration}ms`);
+        if (response.status === 200) {
+          this.logger.log(`Health check успішний. Тривалість: ${duration}ms`);
+        } else {
+          this.logger.warn(`Health check повернув статус: ${response.status}`);
+        }
       } catch (error) {
         this.logger.error(`Помилка health check: ${error.message}`);
       }
