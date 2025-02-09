@@ -111,7 +111,9 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           `,
         );
 
-        await ctx.reply(response, { parse_mode: 'MarkdownV2' });
+        await ctx.reply(this.escapeMarkdown(response), {
+          parse_mode: 'MarkdownV2',
+        });
       } catch (error) {
         console.error('Помилка в команді /start:', error);
         await ctx.reply('Виникла помилка. Спробуйте ще раз.');
@@ -132,7 +134,9 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           userId,
           userMessage,
         );
-        await ctx.reply(response, { parse_mode: 'MarkdownV2' });
+        await ctx.reply(this.escapeMarkdown(response), {
+          parse_mode: 'MarkdownV2',
+        });
       } catch (error) {
         console.error('Помилка обробки повідомлення:', error);
         await ctx.reply('Виникла помилка. Спробуйте ще раз.');
@@ -151,5 +155,9 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.stop('DESTROY');
+  }
+
+  private escapeMarkdown(text: string): string {
+    return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
   }
 }
