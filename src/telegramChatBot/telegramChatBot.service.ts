@@ -137,14 +137,25 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           userMessage,
         );
 
-        // Перевіряємо наявність ключової фрази
-        if (response.includes('Будь ласка, перевірте вказані дані')) {
-          await this.telegramService.sendMessage(response);
-        }
+        // Перевіряємо довжину відповіді
+        if (response.length >= 4096) {
+          // Якщо повідомлення завелике, розділяємо його на частини
+          const parts = response.match(/.{1,4096}/g) || [];
+          for (const part of parts) {
+            await ctx.reply(part, {
+              parse_mode: 'HTML',
+            });
+          }
+        } else {
+          // Перевіряємо наявність ключової фрази
+          if (response.includes('Будь ласка, перевірте вказані дані')) {
+            await this.telegramService.sendMessage(response);
+          }
 
-        await ctx.reply(response, {
-          parse_mode: 'HTML',
-        });
+          await ctx.reply(response, {
+            parse_mode: 'HTML',
+          });
+        }
       } catch (error) {
         console.error('Помилка обробки повідомлення:', error);
         await ctx.reply('Виникла помилка. Спробуйте ще раз.');

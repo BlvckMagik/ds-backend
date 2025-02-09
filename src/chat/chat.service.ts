@@ -28,7 +28,8 @@ export class ChatService {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: messages,
-        max_tokens: 150,
+        max_tokens: 5000,
+        temperature: 0.7,
       });
 
       const chatResponse = response.choices[0]?.message?.content?.trim() || '';
