@@ -1,20 +1,27 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/await-thenable */
 /* eslint-disable @typescript-eslint/no-misused-promises */
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Inject,
+} from '@nestjs/common';
 import { Telegraf } from 'telegraf';
 import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
+  // @ts-ignore
   private bot: Telegraf;
   private isRunning = false;
 
-  constructor(private readonly chatService: ChatService) {
-    const token = process.env.MANAGER_TELEGRAM_BOT_ID;
-    if (!token) {
-      throw new Error('MANAGER_TELEGRAM_BOT_ID is not defined');
-    }
-    this.bot = new Telegraf(token);
+  constructor(
+    private readonly chatService: ChatService,
+    // @ts-ignore
+    @Inject(Telegraf) private readonly bot: Telegraf,
+  ) {
+    this.bot = bot;
   }
 
   async onModuleInit() {
@@ -113,6 +120,7 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
       );
 
       try {
+        console.log('Sending request to OpenAI with userId:', userId);
         const response = await this.chatService.getChatResponse(
           userId,
           userMessage,
