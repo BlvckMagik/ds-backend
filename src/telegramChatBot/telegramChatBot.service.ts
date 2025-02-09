@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Telegraf } from 'telegraf';
 import { ChatService } from '../chat/chat.service';
+import { TelegramService } from '../telegram/telegram.service';
 
 @Injectable()
 export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
@@ -20,6 +21,7 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
     private readonly chatService: ChatService,
     // @ts-ignore
     @Inject(Telegraf) private readonly bot: Telegraf,
+    private readonly telegramService: TelegramService,
   ) {
     this.bot = bot;
   }
@@ -107,7 +109,7 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           Номер телефону має відповідати паттерну українських, німецьких та австрійських номерів. Якщо користувач заявляє, що це телефон іншої країни, то його можна прийняти
           Консультації не по темі розмови не проводяться. Можеш переходити на інші мови крім російської, але якщо починаєш говорити першим, то звертайся українською. Консультація російською не проводиться, на цю мову заборонено переходити.
           Після отримання всіх необхідних данних відправ данні форми, що заповнив користувач і попроси його підтвердити, що все правильно. В самому повідомленні має бути ключова фраза повністю: "Будь ласка, перевірте вказані данні". Після підтвердження подякуй, скажи, що ми зв'яжемося з користувачем найближчим часом і попрощайся. Також скажи, що якщо будуть додаткові питання, то користувач може звертатись повторно.
-          Для форматування тексту використовуй parse_mode: 'HTML'.
+          Для форматування тексту використовуй parse_mode: 'HTML'. Використовуй тільки його, не використовуй MarkdownV2!
           `,
         );
 
@@ -134,6 +136,12 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           userId,
           userMessage,
         );
+
+        // Перевіряємо наявність ключової фрази
+        if (response.includes('Будь ласка, перевірте вказані данні')) {
+          await this.telegramService.sendMessage(response);
+        }
+
         await ctx.reply(response, {
           parse_mode: 'HTML',
         });

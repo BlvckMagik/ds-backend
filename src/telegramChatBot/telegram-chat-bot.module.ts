@@ -3,9 +3,10 @@ import { TelegramChatBotService } from './telegramChatBot.service';
 import { TelegramChatBotController } from './telegram-chat-bot.controller';
 import { ChatModule } from '../chat/chat.module';
 import { Telegraf } from 'telegraf';
+import { TelegramModule } from 'src/telegram/telegram.module';
 
 @Module({
-  imports: [ChatModule],
+  imports: [ChatModule, TelegramModule],
   controllers: [TelegramChatBotController],
   providers: [
     {
