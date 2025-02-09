@@ -69,15 +69,15 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private setupHandlers() {
-    this.bot.start(async (ctx) => {
+    // Обробник команди /start
+    this.bot.command('start', async (ctx) => {
       const userId = ctx.from.id;
       console.log(`Отримано команду /start від користувача ${userId}`);
 
       try {
         await ctx.reply(
-          'Ласкаво просимо! Зачекайте, будь ласка, поки я підготуюсь до розмови...',
+          'Вітаю! Я асистент школи іноземних мов. Як я можу вам допомогти?',
         );
-        console.log('Відправлено привітальне повідомлення');
 
         const response = await this.chatService.getChatResponse(
           userId,
@@ -96,37 +96,30 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
           Консультації не по темі розмови не проводяться. Номер телефону обов'язково має відповідати паттерну українських номерів. Якщо користувач заявляє, що це телефон іншої країни, то його можна прийняти
           `,
         );
-        console.log(`Отримано відповідь від ChatGPT: ${response}`);
 
         await ctx.reply(response);
-        console.log('Відповідь успішно надіслана користувачу');
       } catch (error) {
-        console.error('Детальна помилка в команді start:', error);
-        await ctx.reply(
-          'Виникла помилка при ініціалізації чату. Спробуйте ще раз.',
-        );
+        console.error('Помилка в команді /start:', error);
+        await ctx.reply('Виникла помилка. Спробуйте ще раз.');
       }
     });
 
+    // Обробник текстових повідомлень
     this.bot.on('text', async (ctx) => {
+      const userId = ctx.from.id;
+      const userMessage = ctx.message.text;
+      console.log(
+        `Отримано повідомлення від користувача ${userId}: ${userMessage}`,
+      );
+
       try {
-        const userId = ctx.from.id;
-        const userMessage = ctx.message.text;
-
-        console.log(
-          `Отримано повідомлення від користувача ${userId}: ${userMessage}`,
-        );
-
         const response = await this.chatService.getChatResponse(
           userId,
           userMessage,
         );
-
-        console.log(`Відповідь для користувача ${userId}: ${response}`);
-
         await ctx.reply(response);
       } catch (error) {
-        console.error('Error processing message:', error);
+        console.error('Помилка обробки повідомлення:', error);
         await ctx.reply('Виникла помилка. Спробуйте ще раз.');
       }
     });
