@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/await-thenable */
 /* eslint-disable @typescript-eslint/no-misused-promises */
 import {
@@ -10,12 +13,14 @@ import {
 import { Telegraf } from 'telegraf';
 import { ChatService } from '../chat/chat.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { connect, disconnect } from '@ngrok/ngrok';
 
 @Injectable()
 export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
   // @ts-ignore
   private bot: Telegraf;
   private isRunning = false;
+  private ngrokListener: any;
 
   constructor(
     private readonly chatService: ChatService,
@@ -26,6 +31,38 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
     this.bot = bot;
   }
 
+  private async setWebhookWithRetry(webhookUrl: string, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.bot.telegram.deleteWebhook({ drop_pending_updates: true });
+        // Чекаємо 2 секунди після видалення вебхука
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        await this.bot.telegram.setWebhook(webhookUrl);
+        console.log(`Webhook встановлено на ${webhookUrl}`);
+        return true;
+      } catch (error) {
+        if (error.response?.error_code === 429) {
+          const retryAfter = error.response.parameters.retry_after || 1;
+          console.log(
+            `Очікування ${retryAfter} секунд перед повторною спробою...`,
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryAfter * 1000),
+          );
+
+          if (attempt === maxRetries) {
+            throw new Error(
+              `Не вдалося встановити webhook після ${maxRetries} спроб`,
+            );
+          }
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
   async onModuleInit() {
     if (this.isRunning) {
       return;
@@ -33,38 +70,43 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
 
     try {
       this.setupHandlers();
+      let webhookDomain;
 
-      const webhookDomain = process.env.WEBHOOK_DOMAIN;
-      const secretPath = `/webhook/${process.env.MANAGER_TELEGRAM_BOT_ID}`;
-
-      if (webhookDomain) {
-        // Додаємо затримку перед видаленням вебхука
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Видаляємо попередній вебхук
-        await this.bot.telegram.deleteWebhook({ drop_pending_updates: true });
-
-        // Додаємо затримку перед встановленням нового вебхука
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Встановлюємо новий webhook
-        await this.bot.telegram.setWebhook(`${webhookDomain}${secretPath}`);
-        console.log(`Webhook встановлено на ${webhookDomain}${secretPath}`);
-
-        // Додаємо затримку перед запуском
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Запускаємо бота
-        await this.bot.launch({
-          webhook: {
-            domain: webhookDomain,
-            path: secretPath,
-            hookPath: secretPath,
-          },
-        });
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          this.ngrokListener = await connect({
+            addr: Number(process.env.PORT) || 3000,
+            authtoken: process.env.NGROK_AUTH_TOKEN,
+          });
+          webhookDomain = this.ngrokListener.url();
+          console.log('Створено новий Ngrok тунель:', webhookDomain);
+        } catch (error) {
+          console.error('Помилка при налаштуванні Ngrok:', error);
+          webhookDomain = process.env.WEBHOOK_DOMAIN;
+        }
       } else {
-        throw new Error('WEBHOOK_DOMAIN не налаштовано в змінних оточення');
+        webhookDomain = process.env.WEBHOOK_DOMAIN;
       }
+
+      if (!webhookDomain) {
+        throw new Error('Не вдалося отримати домен для вебхука');
+      }
+
+      const secretPath = `/webhook/${process.env.MANAGER_TELEGRAM_BOT_ID}`;
+      const webhookUrl = `${webhookDomain}${secretPath}`;
+
+      await this.setWebhookWithRetry(webhookUrl);
+
+      // Чекаємо 2 секунди перед запуском бота
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      await this.bot.launch({
+        webhook: {
+          domain: webhookDomain,
+          path: secretPath,
+          hookPath: secretPath,
+        },
+      });
 
       this.isRunning = true;
       console.log('Telegram bot started successfully in webhook mode');
@@ -168,6 +210,9 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
       console.log(`Stopping bot on ${signal}`);
       await this.bot.telegram.deleteWebhook();
       await this.bot.stop(signal);
+      if (this.ngrokListener) {
+        await disconnect(this.ngrokListener);
+      }
       this.isRunning = false;
     }
   }
