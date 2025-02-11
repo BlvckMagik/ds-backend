@@ -4,9 +4,15 @@ import { TelegramChatBotController } from './telegram-chat-bot.controller';
 import { ChatModule } from '../chat/chat.module';
 import { Telegraf } from 'telegraf';
 import { TelegramModule } from 'src/telegram/telegram.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { Message, MessageSchema } from '../chat/schemas/message.schema';
 
 @Module({
-  imports: [ChatModule, TelegramModule],
+  imports: [
+    ChatModule,
+    TelegramModule,
+    MongooseModule.forFeature([{ name: Message.name, schema: MessageSchema }]),
+  ],
   controllers: [TelegramChatBotController],
   providers: [
     {

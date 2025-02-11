@@ -9,11 +9,15 @@ import {
   OnModuleInit,
   OnModuleDestroy,
   Inject,
+  Logger,
 } from '@nestjs/common';
 import { Telegraf } from 'telegraf';
 import { ChatService } from '../chat/chat.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { connect, disconnect } from '@ngrok/ngrok';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Message, MessageDocument } from '../chat/schemas/message.schema';
 
 @Injectable()
 export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
@@ -21,12 +25,14 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
   private bot: Telegraf;
   private isRunning = false;
   private ngrokListener: any;
+  private readonly logger = new Logger(TelegramChatBotService.name);
 
   constructor(
     private readonly chatService: ChatService,
     // @ts-ignore
     @Inject(Telegraf) private readonly bot: Telegraf,
     private readonly telegramService: TelegramService,
+    @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
   ) {
     this.bot = bot;
   }
@@ -168,41 +174,73 @@ export class TelegramChatBotService implements OnModuleInit, OnModuleDestroy {
     this.bot.on('text', async (ctx) => {
       const userId = ctx.from.id;
       const userMessage = ctx.message.text;
-      console.log(
+      this.logger.log(
         `Отримано повідомлення від користувача ${userId}: ${userMessage}`,
       );
 
       try {
-        console.log('Sending request to OpenAI with userId:', userId);
+        this.logger.debug(
+          `Відправляємо запит до OpenAI для користувача: ${userId}`,
+        );
         const response = await this.chatService.getChatResponse(
           userId,
           userMessage,
         );
 
-        // Перевіряємо довжину відповіді
+        console.log(`Отримано відповідь від OpenAI для користувача ${userId}`);
+        await this.saveMessage(ctx, userMessage, response);
+
         if (response.length >= 4096) {
-          // Якщо повідомлення завелике, розділяємо його на частини
+          this.logger.debug(
+            `Розділяємо довге повідомлення для користувача ${userId}`,
+          );
           const parts = response.match(/.{1,4096}/g) || [];
           for (const part of parts) {
-            await ctx.reply(part, {
-              parse_mode: 'HTML',
-            });
+            await ctx.reply(part, { parse_mode: 'HTML' });
           }
         } else {
-          // Перевіряємо наявність ключової фрази
           if (response.includes('Будь ласка, перевірте вказані дані')) {
+            console.log(`Відправляємо форму для користувача ${userId}`);
             await this.telegramService.sendMessage(response);
           }
-
-          await ctx.reply(response, {
-            parse_mode: 'HTML',
-          });
+          await ctx.reply(response, { parse_mode: 'HTML' });
         }
       } catch (error) {
-        console.error('Помилка обробки повідомлення:', error);
+        console.log(
+          `Помилка обробки повідомлення для користувача ${userId}: ${error.message}`,
+          error.stack,
+        );
         await ctx.reply('Виникла помилка. Спробуйте ще раз.');
       }
     });
+  }
+
+  private async saveMessage(
+    ctx: any,
+    userMessage: string,
+    botResponse: string,
+  ) {
+    try {
+      const message = new this.messageModel({
+        userId: ctx.from.id,
+        userMessage,
+        botResponse,
+        username: ctx.from.username,
+        firstName: ctx.from.first_name,
+        lastName: ctx.from.last_name,
+      });
+
+      await message.save();
+      this.logger.log(
+        `Повідомлення збережено для користувача ${ctx.from.id} (${ctx.from.username || 'Без імені'})`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Помилка збереження повідомлення для користувача ${ctx.from.id}: ${error.message}`,
+        error.stack,
+      );
+      // Не кидаємо помилку далі, щоб не переривати роботу бота
+    }
   }
 
   private async stop(signal: string) {
