@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TelegramChatBotService } from './telegramChatBot.service';
+import { TelegramChatBotService } from './telegram-chat-bot.service';
 import { TelegramChatBotController } from './telegram-chat-bot.controller';
 import { ChatModule } from '../chat/chat.module';
 import { Telegraf } from 'telegraf';
